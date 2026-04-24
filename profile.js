@@ -38,14 +38,20 @@ function extractInstalledSkills(content) {
   return [...new Set(skills)]
 }
 
-// Read all available context files
+// Read all available context files — works for any user on any machine
 function gatherFiles() {
   const sources = []
 
   const candidates = [
+    // Global Claude Code config (~/.claude/CLAUDE.md)
     { label: 'Global CLAUDE.md', path: path.join(os.homedir(), '.claude', 'CLAUDE.md') },
-    { label: 'Project CLAUDE.md', path: path.join('E:\\Claude Projects', 'CLAUDE.md') },
-    { label: 'Local CLAUDE.md', path: path.join(process.cwd(), '..', 'CLAUDE.md') },
+    // Current working directory
+    { label: 'Local CLAUDE.md', path: path.join(process.cwd(), 'CLAUDE.md') },
+    // One level up (if running from a subdirectory)
+    { label: 'Parent CLAUDE.md', path: path.join(process.cwd(), '..', 'CLAUDE.md') },
+    // Claude projects root (checks common locations)
+    { label: 'Projects CLAUDE.md', path: path.join(os.homedir(), 'Claude Projects', 'CLAUDE.md') },
+    { label: 'Projects CLAUDE.md', path: path.join(os.homedir(), 'Documents', 'Claude', 'CLAUDE.md') },
   ]
 
   for (const c of candidates) {
@@ -54,14 +60,21 @@ function gatherFiles() {
     }
   }
 
-  // Memory files
-  const memoryDir = path.join(process.cwd(), '..', 'memory')
-  if (fs.existsSync(memoryDir)) {
-    for (const file of fs.readdirSync(memoryDir).filter(f => f.endsWith('.md'))) {
-      sources.push({
-        label: `Memory: ${file}`,
-        content: fs.readFileSync(path.join(memoryDir, file), 'utf8'),
-      })
+  // Memory files — look in standard locations
+  const memoryDirs = [
+    path.join(process.cwd(), 'memory'),
+    path.join(process.cwd(), '..', 'memory'),
+    path.join(os.homedir(), '.claude', 'memory'),
+  ]
+  for (const memoryDir of memoryDirs) {
+    if (fs.existsSync(memoryDir)) {
+      for (const file of fs.readdirSync(memoryDir).filter(f => f.endsWith('.md'))) {
+        sources.push({
+          label: `Memory: ${file}`,
+          content: fs.readFileSync(path.join(memoryDir, file), 'utf8'),
+        })
+      }
+      break // use first memory dir found
     }
   }
 
@@ -72,17 +85,21 @@ export function buildProfile() {
   const sources = gatherFiles()
 
   if (sources.length === 0) {
-    // Hardcoded fallback for demo if no files accessible
+    // No CLAUDE.md found — return a minimal generic profile
+    // User can create ~/.claude/CLAUDE.md to get personalized results
+    console.log('\n  No CLAUDE.md found. Using generic profile.')
+    console.log('  Tip: Create ~/.claude/CLAUDE.md with your role and tech stack for personalized results.\n')
     return {
-      name: 'Nitin',
-      role: 'Senior Product/UX Designer & Creative Technologist',
-      domains: ['product design', 'UI/UX', 'AI tooling', 'web development', 'creative technology'],
-      tools_installed: ['refactoring-ui', 'ux-research', 'frontend-design', 'playwright-automation', 'deep-research', 'figma-design-system-rules'],
-      daily_workflows: ['Figma → Framer design handoff', 'React/Next.js development', 'AI agent building', 'design system work', 'product strategy'],
-      tech_stack: ['React', 'Next.js', 'TypeScript', 'Figma', 'Framer', 'Three.js', 'Spline', 'TailwindCSS', 'After Effects'],
-      gaps: ['automated design-to-code pipeline', 'AI model comparison', 'deployment automation', 'voice UI prototyping', 'real-time collaboration tools'],
-      search_keywords: ['claude code skills', 'MCP server design tools', 'framer MCP', 'figma automation', 'AI design workflow', 'nextjs MCP server', 'react component AI'],
-      summary: 'Senior Product/UX Designer and creative technologist. Uses Figma, Framer, React/Next.js daily. Needs tools that bridge design workflows with AI capabilities.',
+      name: 'User',
+      role: 'AI Developer',
+      domains: ['software development', 'AI tooling'],
+      tools_installed: [],
+      daily_workflows: ['coding', 'AI agent building'],
+      tech_stack: ['JavaScript', 'Python', 'TypeScript'],
+      gaps: ['testing', 'deployment', 'monitoring', 'database'],
+      search_keywords: ['claude code skills', 'MCP server', 'AI tools 2025', 'developer tools', 'coding assistant'],
+      summary: 'AI developer looking for tools to enhance their workflow. No profile found — create ~/.claude/CLAUDE.md for personalized recommendations.',
+      sources_read: [],
     }
   }
 
