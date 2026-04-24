@@ -17,7 +17,7 @@ Every minute, new tools, skills, plugins and MCP servers launch globally. SkillS
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/skillscout
+git clone https://github.com/sauronnitin/skillscout
 cd skillscout
 npm install
 ```

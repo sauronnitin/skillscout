@@ -9,7 +9,7 @@ SkillScout watches the live web for new AI tools, skills, MCP servers, and plugi
 ## Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/skillscout ~/.claude/skills/skillscout
+git clone https://github.com/sauronnitin/skillscout ~/.claude/skills/skillscout
 cd ~/.claude/skills/skillscout && npm install
 ```
 
@@ -35,4 +35,4 @@ node install.js <tool-name>
 
 ## Source
 
-[github.com/YOUR_USERNAME/skillscout](https://github.com/YOUR_USERNAME/skillscout)
+[github.com/sauronnitin/skillscout](https://github.com/sauronnitin/skillscout)
