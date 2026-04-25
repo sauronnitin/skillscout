@@ -41,13 +41,24 @@ function scoreTool(tool, profile) {
   }
 
   // Category bonuses
-  if (tool.category === 'MCP Server') score += 12   // MCP is hot right now
-  if (tool.category === 'Claude Skill') score += 10  // directly installable
-  if (tool.source_platform === 'shipables.dev') score += 8  // verified skill source
+  if (tool.category === 'MCP Server') score += 15   // MCP is hot right now
+  if (tool.category === 'Claude Skill') score += 12  // directly installable
+  if (tool.category === 'Plugin') score += 8
+  if (tool.category === 'CLI Tool') score += 6
+  if (tool.source_platform === 'shipables.dev') score += 10  // verified skill source
+  if (tool.source_platform === 'awesome-mcp-servers') score += 8
+  if (tool.source_platform === 'glama.ai') score += 8
+  if (tool.source_platform === 'mcp.so') score += 8
+  if (tool.source_platform === 'awesome-claude-skills') score += 8
+  if (tool.source_platform === 'anthropic.com') score += 10  // official
+
+  // Base score — reward having a real description (not just a title)
+  if (tool.description && tool.description.length > 20) score += 5
 
   // Popularity signal
-  if (tool.stars > 500) score += 8
-  else if (tool.stars > 100) score += 4
+  if (tool.stars > 500) score += 10
+  else if (tool.stars > 100) score += 5
+  else if (tool.stars > 10) score += 2
 
   // Already installed — skip
   if ((profile.tools_installed || []).some(t => t.toLowerCase() === tool.name.toLowerCase())) {
@@ -104,7 +115,9 @@ export function scoreTools(tools, profile) {
     if (!result) continue // already installed
 
     const { score, matches } = result
-    if (score < 40) continue // not relevant enough
+
+    // Drop only if score is truly 0 AND description is empty
+    if (score === 0 && !tool.description) continue
 
     const reasoning = generateReasoning(tool, profile, score, matches)
 
@@ -115,6 +128,6 @@ export function scoreTools(tools, profile) {
     })
   }
 
-  // Sort by score descending
-  return scored.sort((a, b) => b.score - a.score)
+  // Sort by score descending, return top 25
+  return scored.sort((a, b) => b.score - a.score).slice(0, 25)
 }

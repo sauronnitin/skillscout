@@ -142,7 +142,7 @@ export function generateCitedMd(profile, tools, approvedTools, stats) {
 | Tools scanned (all-time) | ${stats.seen} |
 | Tools pending approval | ${stats.pending} |
 | Tools installed | ${stats.installed} |
-| Tools scored ≥ 60% | ${tools.length} |
+| Tools recommended (top 25) | ${tools.length} |
 | Scan timestamp | ${date} |
 
 ---
