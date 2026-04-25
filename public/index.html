@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillScout — AI Tool Discovery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── IBM Carbon Design System tokens ── */
+    :root {
+      /* Carbon Gray 100 theme */
+      --bg:            #161616;
+      --layer-01:      #262626;
+      --layer-02:      #393939;
+      --layer-03:      #525252;
+      --border-subtle: #393939;
+      --border-strong: #6f6f6f;
+
+      --text-primary:   #f4f4f4;
+      --text-secondary: #c6c6c6;
+      --text-helper:    #8d8d8d;
+      --text-disabled:  #525252;
+
+      --interactive:    #0f62fe;
+      --interactive-hover: #0050e6;
+      --link:           #78a9ff;
+      --link-hover:     #a6c8ff;
+
+      --support-success: #42be65;
+      --support-warning: #f1c21b;
+      --support-error:   #ff8389;
+      --support-info:    #4589ff;
+
+      --tag-blue-bg:    #0043ce;
+      --tag-green-bg:   #044317;
+      --tag-teal-bg:    #004144;
+      --tag-purple-bg:  #491d8b;
+      --tag-red-bg:     #750e13;
+      --tag-gray-bg:    #393939;
+
+      --font: 'IBM Plex Sans', -apple-system, sans-serif;
+      --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── IBM Carbon: Header ── */
+    .c-header {
+      background: #000;
+      border-bottom: 1px solid var(--border-subtle);
+      height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      gap: 0;
+    }
+    .c-header__name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-decoration: none;
+      padding: 0 16px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      border-right: 1px solid var(--border-subtle);
+      letter-spacing: 0.1px;
+      white-space: nowrap;
+    }
+    .c-header__name span { color: var(--interactive); margin-right: 6px; }
+    .c-header__nav {
+      display: flex;
+      height: 48px;
+      align-items: center;
+      margin-left: 8px;
+      gap: 0;
+    }
+    .c-header__nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 2px solid transparent;
+      transition: color 0.1s, border-color 0.1s;
+    }
+    .c-header__nav a:hover { color: var(--text-primary); background: var(--layer-01); }
+    .c-header__nav a.active { color: var(--text-primary); border-bottom-color: var(--interactive); }
+    .c-header__spacer { flex: 1; }
+    .c-header__status {
+      font-size: 12px;
+      color: var(--text-helper);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-right: 16px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border-strong);
+    }
+    .status-dot.running { background: var(--support-warning); animation: pulse 1s infinite; }
+    .status-dot.done { background: var(--support-success); }
+    .status-dot.error { background: var(--support-error); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      min-height: calc(100vh - 48px);
+    }
+
+    /* ── Left panel ── */
+    .panel {
+      background: var(--layer-01);
+      border-right: 1px solid var(--border-subtle);
+      padding: 0;
+      overflow-y: auto;
+    }
+    .panel__section {
+      padding: 24px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .panel__label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-helper);
+      margin-bottom: 16px;
+    }
+    .profile-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .profile-role {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    /* Chip tags — Carbon style */
+    .tag-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 0;
+      font-size: 12px;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+    .tag--blue    { background: var(--tag-blue-bg);   color: #a6c8ff; }
+    .tag--green   { background: var(--tag-green-bg);  color: #6fdc8c; }
+    .tag--teal    { background: var(--tag-teal-bg);   color: #3ddbd9; }
+    .tag--purple  { background: var(--tag-purple-bg); color: #d4bbff; }
+    .tag--red     { background: var(--tag-red-bg);    color: #ffb3b8; }
+    .tag--gray    { background: var(--tag-gray-bg);   color: var(--text-secondary); }
+    .tag--outline { background: transparent; border: 1px solid var(--border-strong); color: var(--text-secondary); }
+
+    /* Source scan list */
+    .source-list { list-style: none; }
+    .source-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .source-item__icon { width: 16px; text-align: center; flex-shrink: 0; }
+    .source-item__name { flex: 1; }
+    .source-item__count {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-helper);
+    }
+    .source-idle   .source-item__icon { color: var(--text-disabled); }
+    .source-done   .source-item__icon { color: var(--support-success); }
+    .source-error  .source-item__icon { color: var(--support-error); }
+    .source-running .source-item__icon { color: var(--support-warning); }
+
+    /* ── Main content ── */
+    .main {
+      background: var(--bg);
+      overflow-y: auto;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--layer-01);
+    }
+    .toolbar__title {
+      font-size: 16px;
+      font-weight: 600;
+      flex: 1;
+    }
+    .toolbar__meta {
+      font-size: 12px;
+      color: var(--text-helper);
+    }
+
+    /* ── IBM Carbon Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 16px;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.1s;
+      border-radius: 0;
+      white-space: nowrap;
+    }
+    .btn--primary {
+      background: var(--interactive);
+      color: #fff;
+    }
+    .btn--primary:hover { background: var(--interactive-hover); }
+    .btn--primary:disabled { background: var(--layer-03); color: var(--text-disabled); cursor: not-allowed; }
+    .btn--secondary {
+      background: var(--layer-02);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+    }
+    .btn--secondary:hover { background: var(--layer-03); }
+    .btn--ghost {
+      background: transparent;
+      color: var(--link);
+      padding: 0 8px;
+    }
+    .btn--ghost:hover { background: var(--layer-01); color: var(--link-hover); }
+    .btn--sm { height: 32px; font-size: 12px; padding: 0 12px; }
+    .btn--danger {
+      background: #da1e28;
+      color: #fff;
+    }
+    .btn--danger:hover { background: #ba1b23; }
+
+    /* ── Progress bar — Carbon ── */
+    .progress-bar {
+      height: 8px;
+      background: var(--layer-02);
+      overflow: hidden;
+    }
+    .progress-bar__fill {
+      height: 100%;
+      background: var(--interactive);
+      transition: width 0.4s ease;
+    }
+
+    /* ── Tool grid ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 1px;
+      background: var(--border-subtle);
+      padding: 0;
+    }
+
+    /* ── IBM Carbon Tile / Tool card ── */
+    .tool-tile {
+      background: var(--layer-01);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: background 0.1s;
+      cursor: default;
+    }
+    .tool-tile:hover { background: var(--layer-02); }
+
+    .tile__header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .tile__rank {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-disabled);
+      padding-top: 3px;
+      width: 24px;
+      flex-shrink: 0;
+    }
+    .tile__name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+      line-height: 1.3;
+    }
+    .tile__score {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 600;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .score--high   { color: var(--support-success); }
+    .score--medium { color: var(--support-warning); }
+    .score--low    { color: var(--text-helper); }
+
+    .tile__desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      -webkit-line-clamp: 2;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .tile__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .tile__reason {
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-left: 2px solid var(--interactive);
+      padding-left: 10px;
+      line-height: 1.5;
+    }
+
+    .tile__install {
+      background: var(--layer-02);
+      border: 1px solid var(--border-subtle);
+      padding: 8px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--link);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .tile__install code {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .copy-btn {
+      background: none;
+      border: none;
+      color: var(--text-helper);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 2px 6px;
+      flex-shrink: 0;
+      font-family: var(--font);
+      transition: color 0.1s;
+    }
+    .copy-btn:hover { color: var(--text-primary); }
+
+    .tile__footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+    }
+    .tile__source {
+      font-size: 11px;
+      color: var(--text-helper);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tile__source a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .tile__source a:hover { color: var(--link); text-decoration: underline; }
+
+    /* ── Empty / loading states ── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px;
+      text-align: center;
+      gap: 16px;
+    }
+    .empty-state__icon {
+      font-size: 48px;
+      opacity: 0.4;
+    }
+    .empty-state__title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .empty-state__desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      max-width: 360px;
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .stat-cell {
+      flex: 1;
+      padding: 16px 24px;
+      border-right: 1px solid var(--border-subtle);
+    }
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell__value {
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--text-primary);
+      font-family: var(--mono);
+      line-height: 1.1;
+    }
+    .stat-cell__label {
+      font-size: 12px;
+      color: var(--text-helper);
+      margin-top: 4px;
+    }
+
+    /* ── Notification toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--layer-02);
+      border: 1px solid var(--border-subtle);
+      border-left: 3px solid var(--support-success);
+      padding: 14px 18px;
+      font-size: 13px;
+      color: var(--text-primary);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      z-index: 999;
+      display: none;
+      max-width: 320px;
+    }
+    .toast.visible { display: block; animation: slideIn 0.2s ease; }
+    .toast.error { border-left-color: var(--support-error); }
+    @keyframes slideIn { from { transform: translateX(20px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+
+    /* ── IBM Carbon Loading spinner ── */
+    .loading-ring {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border-subtle);
+      border-top-color: var(--interactive);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-bar__label { font-size: 12px; color: var(--text-helper); }
+    .filter-btn {
+      height: 28px;
+      padding: 0 12px;
+      font-size: 12px;
+      font-family: var(--font);
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 0;
+      transition: all 0.1s;
+    }
+    .filter-btn:hover { background: var(--layer-02); color: var(--text-primary); }
+    .filter-btn.active { background: var(--interactive); border-color: var(--interactive); color: #fff; font-weight: 600; }
+
+    /* ── Sponsor bar ── */
+    .sponsor-bar {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .sponsor-bar__label { font-size: 11px; color: var(--text-disabled); text-transform: uppercase; letter-spacing: 0.1em; }
+    .sponsor-chip {
+      font-size: 12px;
+      color: var(--text-helper);
+      padding: 4px 10px;
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sponsor-chip span { color: var(--interactive); font-weight: 600; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .panel { border-right: none; border-bottom: 1px solid var(--border-subtle); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── IBM Carbon Header ── -->
+<header class="c-header">
+  <a href="/" class="c-header__name">
+    <span>⬡</span> SkillScout
+  </a>
+  <nav class="c-header__nav">
+    <a href="#" class="active" onclick="showView('scan')">Scan</a>
+    <a href="#" onclick="showView('results')">Results</a>
+  </nav>
+  <div class="c-header__spacer"></div>
+  <div class="c-header__status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Ready</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Left Panel ── -->
+  <aside class="panel">
+
+    <!-- Profile -->
+    <div class="panel__section">
+      <div class="panel__label">User Profile</div>
+      <div id="profileName" class="profile-name">—</div>
+      <div id="profileRole" class="profile-role">Run a scan to build your profile</div>
+      <div class="panel__label" style="margin-top:16px">Tech Stack</div>
+      <div id="profileStack" class="tag-group"></div>
+      <div class="panel__label" style="margin-top:16px">Domains</div>
+      <div id="profileDomains" class="tag-group"></div>
+      <div class="panel__label" style="margin-top:16px">Identified Gaps</div>
+      <div id="profileGaps" class="tag-group"></div>
+    </div>
+
+    <!-- Scan sources progress -->
+    <div class="panel__section">
+      <div class="panel__label">Scan Sources</div>
+      <ul class="source-list" id="sourceList">
+        <li class="source-item source-idle" data-source="shipables">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">Shipables.dev</span>
+          <span class="source-item__count" id="src-shipables">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="awesome-mcp">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">awesome-mcp-servers</span>
+          <span class="source-item__count" id="src-awesome-mcp">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="mcp.so">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">mcp.so</span>
+          <span class="source-item__count" id="src-mcp.so">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="glama.ai">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">glama.ai/mcp</span>
+          <span class="source-item__count" id="src-glama.ai">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="npm">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">npm Registry</span>
+          <span class="source-item__count" id="src-npm">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="github">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">GitHub MCP Search</span>
+          <span class="source-item__count" id="src-github">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="claude-skills">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">awesome-claude-skills</span>
+          <span class="source-item__count" id="src-claude-skills">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="hackernews">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">Hacker News</span>
+          <span class="source-item__count" id="src-hackernews">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="anthropic">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">Anthropic Docs</span>
+          <span class="source-item__count" id="src-anthropic">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="producthunt">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">ProductHunt</span>
+          <span class="source-item__count" id="src-producthunt">—</span>
+        </li>
+        <li class="source-item source-idle" data-source="keywords">
+          <span class="source-item__icon">○</span>
+          <span class="source-item__name">Targeted Searches</span>
+          <span class="source-item__count" id="src-keywords">—</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Scan button -->
+    <div class="panel__section">
+      <button class="btn btn--primary" id="scanBtn" onclick="startScan()" style="width:100%">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
+        Run Scan
+      </button>
+      <div style="margin-top:10px">
+        <div class="progress-bar">
+          <div class="progress-bar__fill" id="progressBar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sponsors -->
+    <div class="sponsor-bar" style="flex-direction:column;align-items:flex-start;gap:8px">
+      <div class="sponsor-bar__label">Powered by</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <div class="sponsor-chip"><span>TinyFish</span> Web Scanning</div>
+        <div class="sponsor-chip"><span>Redis</span> Registry</div>
+        <div class="sponsor-chip"><span>WunderGraph</span> Federation</div>
+        <div class="sponsor-chip"><span>Chainguard</span> Containers</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main content ── -->
+  <main class="main">
+
+    <!-- Stats bar -->
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-cell">
+        <div class="stat-cell__value" id="statScanned">—</div>
+        <div class="stat-cell__label">Tools Scanned</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell__value" id="statPending">—</div>
+        <div class="stat-cell__label">Pending Review</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell__value" id="statRecommended">—</div>
+        <div class="stat-cell__label">Recommended</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell__value" id="statInstalled">—</div>
+        <div class="stat-cell__label">Installed</div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <span class="toolbar__title" id="toolbarTitle">No scan yet</span>
+      <span class="toolbar__meta" id="toolbarMeta"></span>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar" id="filterBar" style="display:none">
+      <span class="filter-bar__label">Filter:</span>
+      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('MCP Server', this)">MCP Server</button>
+      <button class="filter-btn" onclick="setFilter('Claude Skill', this)">Claude Skill</button>
+      <button class="filter-btn" onclick="setFilter('Tool / Repo', this)">Tool / Repo</button>
+      <button class="filter-btn" onclick="setFilter('Plugin', this)">Plugin</button>
+    </div>
+
+    <!-- Tool grid / empty state -->
+    <div id="toolsContainer">
+      <div class="empty-state">
+        <div class="empty-state__icon">⬡</div>
+        <div class="empty-state__title">No results yet</div>
+        <div class="empty-state__desc">Click <strong>Run Scan</strong> to discover new AI tools, MCP servers, and Claude skills tailored to your workflow.</div>
+        <button class="btn btn--primary" onclick="startScan()">Run Scan</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let allTools = []
+  let activeFilter = 'all'
+  let scanSource = null
+  const SOURCES_TOTAL = 11
+
+  // ── SSE connection ─────────────────────────────────────────────────────────
+  function connectSSE() {
+    if (scanSource) scanSource.close()
+    scanSource = new EventSource('/api/scan/stream')
+
+    scanSource.addEventListener('profile', e => {
+      renderProfile(JSON.parse(e.data))
+    })
+
+    scanSource.addEventListener('source', e => {
+      const { source, status, count } = JSON.parse(e.data)
+      updateSourceRow(source, status, count)
+      advanceProgress()
+    })
+
+    scanSource.addEventListener('results', e => {
+      const { tools, stats } = JSON.parse(e.data)
+      allTools = tools
+      renderTools(tools)
+      renderStats(stats, tools.length)
+      document.getElementById('filterBar').style.display = 'flex'
+    })
+
+    scanSource.addEventListener('status', e => {
+      const { state, message } = JSON.parse(e.data)
+      setStatus(state, message)
+    })
+
+    scanSource.onerror = () => {
+      // reconnect handled by browser automatically
+    }
+  }
+
+  // ── Start scan ─────────────────────────────────────────────────────────────
+  async function startScan() {
+    resetSources()
+    document.getElementById('progressBar').style.width = '5%'
+    document.getElementById('toolsContainer').innerHTML = `
+      <div class="empty-state">
+        <div class="loading-ring"></div>
+        <div class="empty-state__title">Scanning...</div>
+        <div class="empty-state__desc">Searching 11 sources in parallel. Results will appear as sources complete.</div>
+      </div>`
+    document.getElementById('scanBtn').disabled = true
+    document.getElementById('filterBar').style.display = 'none'
+
+    await fetch('/api/scan', { method: 'POST' })
+    setStatus('running', 'Scanning in progress...')
+  }
+
+  // ── Profile render ─────────────────────────────────────────────────────────
+  function renderProfile(p) {
+    document.getElementById('profileName').textContent = p.name || '—'
+    document.getElementById('profileRole').textContent = p.role || ''
+
+    const stack = document.getElementById('profileStack')
+    stack.innerHTML = (p.tech_stack || []).map(t =>
+      `<span class="tag tag--blue">${esc(t)}</span>`).join('')
+
+    const domains = document.getElementById('profileDomains')
+    domains.innerHTML = (p.domains || []).map(d =>
+      `<span class="tag tag--teal">${esc(d)}</span>`).join('')
+
+    const gaps = document.getElementById('profileGaps')
+    gaps.innerHTML = (p.gaps || []).map(g =>
+      `<span class="tag tag--red">${esc(g)}</span>`).join('')
+  }
+
+  // ── Source rows ────────────────────────────────────────────────────────────
+  function resetSources() {
+    document.querySelectorAll('.source-item').forEach(el => {
+      el.className = 'source-item source-running'
+      el.querySelector('.source-item__icon').textContent = '◌'
+    })
+    document.querySelectorAll('[id^="src-"]').forEach(el => el.textContent = '…')
+  }
+
+  function updateSourceRow(source, status, count) {
+    const row = document.querySelector(`[data-source="${source}"]`)
+    const countEl = document.getElementById(`src-${source}`)
+    if (!row) return
+    if (status === 'done') {
+      row.className = 'source-item source-done'
+      row.querySelector('.source-item__icon').textContent = '●'
+      if (countEl) countEl.textContent = count > 0 ? `+${count}` : '0'
+    } else {
+      row.className = 'source-item source-error'
+      row.querySelector('.source-item__icon').textContent = '✕'
+      if (countEl) countEl.textContent = 'err'
+    }
+  }
+
+  let completedSources = 0
+  function advanceProgress() {
+    completedSources++
+    const pct = Math.min(95, 5 + (completedSources / SOURCES_TOTAL) * 85)
+    document.getElementById('progressBar').style.width = pct + '%'
+  }
+
+  // ── Tool rendering ─────────────────────────────────────────────────────────
+  function renderTools(tools) {
+    document.getElementById('scanBtn').disabled = false
+    document.getElementById('progressBar').style.width = '100%'
+
+    if (!tools || tools.length === 0) {
+      document.getElementById('toolsContainer').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state__icon">◎</div>
+          <div class="empty-state__title">No recommendations found</div>
+          <div class="empty-state__desc">Try running the scan again or check your .env keys.</div>
+        </div>`
+      return
+    }
+
+    document.getElementById('toolbarTitle').textContent = `${tools.length} Recommendations`
+    document.getElementById('toolbarMeta').textContent = `Ranked by relevance to your profile`
+    renderFilteredTools()
+  }
+
+  function renderFilteredTools() {
+    const filtered = activeFilter === 'all'
+      ? allTools
+      : allTools.filter(t => t.category === activeFilter)
+
+    if (filtered.length === 0) {
+      document.getElementById('toolsContainer').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state__icon">◎</div>
+          <div class="empty-state__title">No ${activeFilter} tools found</div>
+          <div class="empty-state__desc">Try a different filter.</div>
+        </div>`
+      return
+    }
+
+    document.getElementById('toolsContainer').innerHTML = `
+      <div class="tools-grid">
+        ${filtered.map((t, i) => renderToolTile(t, i)).join('')}
+      </div>`
+  }
+
+  function renderToolTile(t, i) {
+    const scoreClass = t.score >= 75 ? 'score--high' : t.score >= 50 ? 'score--medium' : 'score--low'
+    const catColor = {
+      'MCP Server': 'tag--blue',
+      'Claude Skill': 'tag--green',
+      'Plugin': 'tag--purple',
+      'Extension': 'tag--teal',
+      'CLI Tool': 'tag--gray',
+      'Tool / Repo': 'tag--gray',
+    }[t.category] || 'tag--outline'
+
+    const sourceLabel = t.source_url
+      ? `<a href="${esc(t.source_url)}" target="_blank" rel="noopener">${esc(t.source_platform)}</a>`
+      : esc(t.source_platform)
+
+    const stars = t.stars > 0
+      ? `<span style="color:var(--text-helper);font-size:11px">★ ${t.stars.toLocaleString()}</span>`
+      : ''
+
+    return `
+    <div class="tool-tile">
+      <div class="tile__header">
+        <span class="tile__rank">#${i+1}</span>
+        <span class="tile__name">${esc(t.name)}</span>
+        <span class="tile__score ${scoreClass}">${t.score}%</span>
+      </div>
+      ${t.description ? `<div class="tile__desc">${esc(t.description)}</div>` : ''}
+      <div class="tile__meta">
+        <span class="tag ${catColor}">${esc(t.category)}</span>
+        ${t.priority ? `<span class="tag tag--outline">${esc(t.priority)}</span>` : ''}
+        ${stars}
+      </div>
+      ${t.why ? `<div class="tile__reason">${esc(t.why)}</div>` : ''}
+      ${t.install_cmd ? `
+        <div class="tile__install">
+          <code>${esc(t.install_cmd)}</code>
+          <button class="copy-btn" onclick="copyInstall('${esc(t.install_cmd)}', this)">copy</button>
+        </div>` : ''}
+      <div class="tile__footer">
+        <span class="tile__source">${sourceLabel}</span>
+        ${t.install_cmd ? `<button class="btn btn--sm btn--secondary" onclick="showInstall(${JSON.stringify(JSON.stringify(t))})">Install →</button>` : ''}
+      </div>
+    </div>`
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  function renderStats(stats, recommended) {
+    document.getElementById('statScanned').textContent = stats?.seen ?? '—'
+    document.getElementById('statPending').textContent = stats?.pending ?? '—'
+    document.getElementById('statRecommended').textContent = recommended ?? '—'
+    document.getElementById('statInstalled').textContent = stats?.installed ?? '—'
+  }
+
+  // ── Status ─────────────────────────────────────────────────────────────────
+  function setStatus(state, message) {
+    const dot = document.getElementById('statusDot')
+    const txt = document.getElementById('statusText')
+    dot.className = 'status-dot ' + state
+    txt.textContent = message || state
+  }
+
+  // ── Filters ────────────────────────────────────────────────────────────────
+  function setFilter(cat, btn) {
+    activeFilter = cat
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    renderFilteredTools()
+  }
+
+  // ── Copy install cmd ───────────────────────────────────────────────────────
+  function copyInstall(cmd, btn) {
+    navigator.clipboard.writeText(cmd).then(() => {
+      const orig = btn.textContent
+      btn.textContent = 'copied!'
+      setTimeout(() => btn.textContent = orig, 1500)
+    })
+  }
+
+  // ── Install modal ──────────────────────────────────────────────────────────
+  function showInstall(toolJson) {
+    const tool = JSON.parse(toolJson)
+    toast(`Run this command to install:\n\n${tool.install_cmd}`, false)
+    navigator.clipboard.writeText(tool.install_cmd)
+  }
+
+  // ── View switch ────────────────────────────────────────────────────────────
+  function showView(v) {
+    document.querySelectorAll('.c-header__nav a').forEach(a => a.classList.remove('active'))
+    event.target.classList.add('active')
+    if (v === 'results') loadCachedResults()
+  }
+
+  async function loadCachedResults() {
+    try {
+      const r = await fetch('/api/results')
+      const { tools, stats } = await r.json()
+      allTools = tools || []
+      renderTools(allTools)
+      renderStats(stats, allTools.length)
+      if (allTools.length > 0) document.getElementById('filterBar').style.display = 'flex'
+    } catch { toast('Failed to load cached results', true) }
+  }
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  function toast(msg, isError = false) {
+    const el = document.getElementById('toast')
+    el.textContent = msg
+    el.className = 'toast visible' + (isError ? ' error' : '')
+    setTimeout(() => el.className = 'toast', 3500)
+  }
+
+  // ── Escape HTML ────────────────────────────────────────────────────────────
+  function esc(str) {
+    if (!str) return ''
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  connectSSE()
+
+  // Load profile on page load
+  fetch('/api/profile').then(r => r.json()).then(renderProfile).catch(() => {})
+
+  // Load cached results if available
+  fetch('/api/results').then(r => r.json()).then(({ tools, stats }) => {
+    if (tools && tools.length > 0) {
+      allTools = tools
+      renderTools(tools)
+      renderStats(stats, tools.length)
+      document.getElementById('filterBar').style.display = 'flex'
+    }
+  }).catch(() => {})
+</script>
+</body>
+</html>

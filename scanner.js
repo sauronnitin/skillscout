@@ -478,47 +478,36 @@ function dedup(tools) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export async function scanWeb(profile) {
+export async function scanWeb(profile, onProgress) {
   const keywords = profile.search_keywords || ['claude code', 'MCP server', 'AI tools']
+  const emit = (source, status, count = 0) => {
+    console.log(status === 'done' ? `  ✓ ${source}: ${count} tools` : `  ✗ ${source}: ${count}`)
+    if (onProgress) onProgress({ source, status, count })
+  }
+
   console.log('\n  Scanning 11 sources in parallel...')
 
-  const [
-    r_shipables, r_awesomeMcp, r_mcpSo, r_glama,
-    r_npm, r_github, r_claudeSkills,
-    r_hn, r_anthropic, r_ph, r_keywords
-  ] = await Promise.allSettled([
-    scanShipables(),
-    scanAwesomeMcpServers(),
-    scanMcpSo(),
-    scanGlamaAI(),
-    scanNpm(),
-    scanGitHubMCP(keywords),
-    scanAwesomeClaudeSkills(),
-    scanHackerNews(keywords),
-    scanAnthropicMCP(),
-    scanProductHunt(keywords),
-    scanProfileKeywords(keywords, profile),
+  // Wrap each scanner so it emits progress when done
+  const wrap = (name, fn) => fn.then(r => { emit(name, 'done', r.length); return r })
+                                .catch(e => { emit(name, 'error', e.message); return [] })
+
+  const results = await Promise.all([
+    wrap('shipables',     scanShipables()),
+    wrap('awesome-mcp',   scanAwesomeMcpServers()),
+    wrap('mcp.so',        scanMcpSo()),
+    wrap('glama.ai',      scanGlamaAI()),
+    wrap('npm',           scanNpm()),
+    wrap('github',        scanGitHubMCP(keywords)),
+    wrap('claude-skills', scanAwesomeClaudeSkills()),
+    wrap('hackernews',    scanHackerNews(keywords)),
+    wrap('anthropic',     scanAnthropicMCP()),
+    wrap('producthunt',   scanProductHunt(keywords)),
+    wrap('keywords',      scanProfileKeywords(keywords, profile)),
   ])
 
-  const sourceMap = {
-    shipables: r_shipables, awesomeMcp: r_awesomeMcp, mcpSo: r_mcpSo,
-    glama: r_glama, npm: r_npm, github: r_github, claudeSkills: r_claudeSkills,
-    hn: r_hn, anthropic: r_anthropic, producthunt: r_ph, keywords: r_keywords,
-  }
-
-  let total = 0
-  const all = []
-  for (const [name, r] of Object.entries(sourceMap)) {
-    if (r.status === 'fulfilled') {
-      all.push(...r.value)
-      console.log(`  ✓ ${name}: ${r.value.length} tools`)
-      total += r.value.length
-    } else {
-      console.log(`  ✗ ${name}: ${r.reason?.message || r.reason}`)
-    }
-  }
-
+  const all = results.flat()
   const unique = dedup(all)
-  console.log(`\n  Raw: ${total} → Deduped: ${unique.length} unique tools`)
+  console.log(`\n  Raw: ${all.length} → Deduped: ${unique.length} unique tools`)
+  if (onProgress) onProgress({ source: '__done__', status: 'done', count: unique.length })
   return unique
 }

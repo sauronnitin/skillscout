@@ -6,6 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "server": "node server.js",
     "profile": "node index.js --profile-only",
     "scan": "node index.js --scan-only",
     "report": "node index.js --report-only"
