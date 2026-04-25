@@ -352,14 +352,21 @@ export function buildProfile() {
     .map(n => n.name)
     .slice(0, 5)
 
-  // Build targeted search keywords from their actual stack
+  // Build targeted search keywords — mix of MCP, skills, tools, and domain-specific
   const searchKeywords = [
-    ...techStack.slice(0, 4).map(t => `${t} MCP server`),
+    // One MCP query for the top stack item only
+    techStack[0] ? `${techStack[0]} MCP server` : null,
+    // Skill/plugin queries for the rest of the stack
+    ...techStack.slice(1, 3).map(t => `${t} developer tool 2025`),
+    // Domain-specific tools (not MCP-only)
     ...domains.slice(0, 2).map(d => `${d} AI tools 2025`),
-    'new claude code skills',
-    'MCP server 2025',
-    ...gaps.slice(0, 2).map(g => `${g} AI tool`),
-  ].slice(0, 10)
+    // Gap-filling tools
+    ...gaps.slice(0, 2).map(g => `${g} AI tool developer`),
+    // Generic discovery — not MCP-specific
+    'new claude code skills 2025',
+    'developer productivity AI tool 2025',
+    'VS Code extension AI 2025',
+  ].filter(Boolean).slice(0, 10)
 
   return {
     name,

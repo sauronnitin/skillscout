@@ -286,16 +286,16 @@ async function scanNpm() {
   return tools.filter(Boolean)
 }
 
-// SOURCE 6: GitHub search — new MCP servers + claude code repos
+// SOURCE 6: GitHub search — developer tools, claude repos, skills (not just MCP)
 // Procedure: tfSearch → collect URLs → tfFetch top repo READMEs for descriptions
 async function scanGitHubMCP(keywords) {
-  console.log('  [Search→Fetch] GitHub — MCP servers + claude repos...')
+  console.log('  [Search→Fetch] GitHub — developer tools + claude repos...')
   const queries = [
     'site:github.com topic:mcp-server claude 2025',
-    `site:github.com "${keywords.slice(0, 2).join('" OR "')}" MCP server`,
-    'site:github.com awesome-mcp-servers stars:>50',
-    'site:github.com claude-code skill SKILL.md',
-    'site:github.com model-context-protocol server new 2025',
+    'site:github.com claude-code skill SKILL.md stars:>10',
+    `site:github.com "${keywords[0] || 'developer'}" AI tool 2025`,
+    'site:github.com awesome developer tools AI 2025 stars:>100',
+    'site:github.com VS Code extension AI productivity 2025',
   ]
   const searchResults = []
   for (const q of queries) {
@@ -378,25 +378,34 @@ async function scanHackerNews(keywords) {
   return tools
 }
 
-// SOURCE 9: Anthropic MCP page + Claude integrations
-// Procedure: tfFetch official MCP page → parse listed servers
-async function scanAnthropicMCP() {
-  console.log('  [Fetch] Anthropic — official MCP integrations...')
-  const urls = [
-    'https://www.anthropic.com/news/model-context-protocol',
-    'https://docs.anthropic.com/en/build-with-claude/mcp',
-  ]
+// SOURCE 9: Broad developer tool discovery — VS Code marketplace, dev blogs, tooling lists
+// Procedure: tfFetch curated non-MCP tool lists + tfSearch for stack-specific tools
+async function scanDevTools(keywords) {
+  console.log('  [Fetch+Search] Developer tools — VS Code, CLI, productivity...')
   const tools = []
+  // Fetch curated non-MCP awesome lists
+  const listUrls = [
+    'https://raw.githubusercontent.com/viatsko/awesome-vscode/master/README.md',
+    'https://raw.githubusercontent.com/stevemao/awesome-git-addons/master/README.md',
+  ]
   try {
-    const result = await tfFetch(urls)
+    const result = await tfFetch(listUrls)
     for (const page of (result.results || [])) {
       if (page?.text) {
-        tools.push(...parseMarkdownToolList(page.text, page.url, 'anthropic.com'))
-        tools.push(...parseToolCards(page.text, page.url, 'anthropic.com'))
+        tools.push(...parseMarkdownToolList(page.text, page.url, 'awesome-devtools'))
       }
     }
-  } catch (e) {
-    console.log(`  [!] Anthropic MCP pages failed: ${e.message}`)
+  } catch { /* continue to search */ }
+
+  // Stack-specific tool searches (not MCP)
+  const stackQueries = keywords
+    .filter(kw => !kw.toLowerCase().includes('mcp'))
+    .slice(0, 3)
+  for (const q of stackQueries) {
+    try {
+      const r = await tfSearch(q)
+      tools.push(...(r.results || []).map(t => normalizeTool(t, 'web')).filter(Boolean))
+    } catch { /* continue */ }
   }
   return tools
 }
@@ -500,7 +509,7 @@ export async function scanWeb(profile, onProgress) {
     wrap('github',        scanGitHubMCP(keywords)),
     wrap('claude-skills', scanAwesomeClaudeSkills()),
     wrap('hackernews',    scanHackerNews(keywords)),
-    wrap('anthropic',     scanAnthropicMCP()),
+    wrap('devtools',      scanDevTools(keywords)),
     wrap('producthunt',   scanProductHunt(keywords)),
     wrap('keywords',      scanProfileKeywords(keywords, profile)),
   ])
