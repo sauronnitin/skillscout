@@ -90,8 +90,10 @@ async function scanShipables() {
     return arr.map(t => normalizeTool(t, 'shipables.dev'))
   } catch (e) {
     console.log(`  [TinyFish] shipables agent failed (${e.message}), falling back to search...`)
-    const result = await tfSearch('claude code skills site:shipables.dev')
-    return (result.results || []).map(t => normalizeTool(t, 'shipables.dev'))
+    try {
+      const result = await tfSearch('claude code skills site:shipables.dev')
+      return (result.results || []).map(t => normalizeTool(t, 'shipables.dev'))
+    } catch { return [] }
   }
 }
 
@@ -100,6 +102,8 @@ async function scanGitHubMCP(keywords) {
   const queries = [
     'new MCP server for claude code 2025 github',
     `${keywords.slice(0, 2).join(' ')} MCP server github open source`,
+    'awesome MCP servers list github 2025',
+    'model context protocol server github',
   ]
   const all = []
   for (const q of queries) {
@@ -113,42 +117,206 @@ async function scanGitHubMCP(keywords) {
 
 async function scanNpm(keywords) {
   console.log('  [TinyFish Fetch] Scanning npm for MCP/Claude packages...')
+  const queries = [
+    'https://registry.npmjs.org/-/v1/search?text=mcp+claude&size=20',
+    'https://registry.npmjs.org/-/v1/search?text=%40modelcontextprotocol&size=20',
+    'https://registry.npmjs.org/-/v1/search?text=claude+skill&size=10',
+  ]
+  const all = []
   try {
-    const result = await tfFetch(['https://registry.npmjs.org/-/v1/search?text=mcp+claude&size=20'])
-    const page = result.results?.[0]
-    if (!page?.text) return []
-    // npm returns JSON as text — parse objects from markdown
-    const objects = page.text.match(/"name":"([^"]+)"/g) || []
-    return objects.slice(0, 10).map(m => {
-      const name = m.match(/"name":"([^"]+)"/)?.[1] || ''
-      return normalizeTool({ name, install_cmd: `npm install ${name}`, url: `https://npmjs.com/package/${name}` }, 'npmjs.com')
-    })
+    const result = await tfFetch(queries)
+    for (const page of (result.results || [])) {
+      if (!page?.text) continue
+      const objects = page.text.match(/"name":"([^"]+)"/g) || []
+      objects.slice(0, 15).forEach(m => {
+        const name = m.match(/"name":"([^"]+)"/)?.[1] || ''
+        if (name) all.push(normalizeTool({ name, install_cmd: `npm install ${name}`, url: `https://npmjs.com/package/${name}` }, 'npmjs.com'))
+      })
+    }
   } catch (e) {
     console.log(`  [TinyFish] npm scan failed: ${e.message}`)
-    return []
   }
+  return all
 }
 
 async function scanHackerNews(keywords) {
   console.log('  [TinyFish Search] Scanning Hacker News for new AI tools...')
+  const queries = [
+    `${keywords.slice(0, 2).join(' ')} AI agent tool MCP released site:news.ycombinator.com`,
+    'Show HN MCP server claude code 2025',
+    'Show HN AI developer tools 2025 site:news.ycombinator.com',
+  ]
+  const all = []
+  for (const q of queries) {
+    try {
+      const result = await tfSearch(q)
+      const filtered = (result.results || []).filter(t => {
+        const text = `${t.title} ${t.snippet}`.toLowerCase()
+        return text.includes('mcp') || text.includes('claude') || text.includes('agent') || text.includes('ai tool')
+      })
+      all.push(...filtered.map(t => normalizeTool(t, 'hackernews')))
+    } catch { /* continue */ }
+  }
+  return all
+}
+
+async function scanMcpSo() {
+  console.log('  [TinyFish Fetch] Scanning mcp.so registry...')
   try {
-    const q = `${keywords.slice(0, 2).join(' ')} AI agent tool MCP released site:news.ycombinator.com`
+    const result = await tfFetch(['https://mcp.so'])
+    const page = result.results?.[0]
+    if (!page?.text) return []
+    // Parse tool names from the page text
+    const lines = page.text.split('\n').filter(l => l.trim().length > 5 && l.trim().length < 120)
+    const tools = []
+    for (const line of lines.slice(0, 40)) {
+      const trimmed = line.replace(/[#*\[\]|]/g, '').trim()
+      if (trimmed && !trimmed.startsWith('http') && trimmed.split(' ').length <= 8) {
+        tools.push(normalizeTool({
+          name: trimmed.split(' ').slice(0, 4).join(' '),
+          description: trimmed,
+          url: 'https://mcp.so',
+        }, 'mcp.so'))
+      }
+    }
+    return tools.slice(0, 15)
+  } catch (e) {
+    console.log(`  [TinyFish] mcp.so scan failed: ${e.message}`)
+    // Fallback: search for mcp.so tools
+    try {
+      const result = await tfSearch('MCP server tools site:mcp.so')
+      return (result.results || []).map(t => normalizeTool(t, 'mcp.so'))
+    } catch { return [] }
+  }
+}
+
+async function scanGlamaAI() {
+  console.log('  [TinyFish Fetch] Scanning glama.ai MCP servers...')
+  try {
+    const result = await tfFetch(['https://glama.ai/mcp/servers'])
+    const page = result.results?.[0]
+    if (!page?.text) return []
+    const lines = page.text.split('\n').filter(l => l.trim())
+    const tools = []
+    for (const line of lines.slice(0, 50)) {
+      const nameMatch = line.match(/##\s+(.+)/) || line.match(/\*\*([^*]{5,60})\*\*/)
+      if (nameMatch) {
+        tools.push(normalizeTool({
+          name: nameMatch[1].trim(),
+          description: line,
+          url: 'https://glama.ai/mcp/servers',
+        }, 'glama.ai'))
+      }
+    }
+    return tools.slice(0, 15)
+  } catch (e) {
+    console.log(`  [TinyFish] glama.ai scan failed: ${e.message}`)
+    try {
+      const result = await tfSearch('MCP server site:glama.ai')
+      return (result.results || []).map(t => normalizeTool(t, 'glama.ai'))
+    } catch { return [] }
+  }
+}
+
+async function scanProductHunt(keywords) {
+  console.log('  [TinyFish Search] Scanning Product Hunt for AI tools...')
+  const q = `${keywords.slice(0, 2).join(' ')} AI tool site:producthunt.com 2025`
+  try {
     const result = await tfSearch(q)
     return (result.results || [])
       .filter(t => {
         const text = `${t.title} ${t.snippet}`.toLowerCase()
-        return text.includes('mcp') || text.includes('claude') || text.includes('agent')
+        return text.includes('ai') || text.includes('developer') || text.includes('mcp') || text.includes('assistant')
       })
-      .map(t => normalizeTool(t, 'hackernews'))
+      .map(t => normalizeTool(t, 'producthunt.com'))
   } catch { return [] }
 }
 
-async function scanKeywords(keywords) {
-  console.log('  [TinyFish Search] Running keyword searches...')
-  const all = []
-  for (const kw of keywords.slice(0, 3)) {
+async function scanAnthropicBlog() {
+  console.log('  [TinyFish Fetch] Scanning Anthropic announcements...')
+  try {
+    const result = await tfFetch(['https://www.anthropic.com/news'])
+    const page = result.results?.[0]
+    if (!page?.text) return []
+    const lines = page.text.split('\n').filter(l => l.trim().length > 10)
+    const tools = []
+    for (const line of lines.slice(0, 30)) {
+      if (line.toLowerCase().includes('mcp') || line.toLowerCase().includes('claude code') || line.toLowerCase().includes('tool')) {
+        tools.push(normalizeTool({
+          name: line.replace(/[#*\[\]]/g, '').trim().slice(0, 60),
+          description: line,
+          url: 'https://www.anthropic.com/news',
+        }, 'anthropic.com'))
+      }
+    }
+    return tools.slice(0, 8)
+  } catch (e) {
+    console.log(`  [TinyFish] Anthropic blog scan failed: ${e.message}`)
+    return []
+  }
+}
+
+async function scanAwesomeMCPList() {
+  console.log('  [TinyFish Fetch] Scanning awesome-mcp-servers list...')
+  try {
+    const result = await tfFetch([
+      'https://raw.githubusercontent.com/punkpeye/awesome-mcp-servers/main/README.md',
+    ])
+    const page = result.results?.[0]
+    if (!page?.text) return []
+    // Parse markdown list entries: "- [name](url) — description"
+    const pattern = /[-*]\s+\[([^\]]+)\]\(([^)]+)\)[^\n]*/g
+    const tools = []
+    let m
+    while ((m = pattern.exec(page.text)) !== null && tools.length < 30) {
+      tools.push(normalizeTool({
+        name: m[1],
+        url: m[2],
+        description: m[0].replace(/[-*\[\]()]/g, ' ').trim(),
+      }, 'awesome-mcp-servers'))
+    }
+    return tools
+  } catch (e) {
+    console.log(`  [TinyFish] awesome-mcp-servers scan failed: ${e.message}`)
     try {
-      const result = await tfSearch(`new ${kw} tool 2025`)
+      const result = await tfSearch('awesome MCP servers list github punkpeye')
+      return (result.results || []).map(t => normalizeTool(t, 'awesome-mcp-servers'))
+    } catch { return [] }
+  }
+}
+
+async function scanClaudeCodeSkills() {
+  console.log('  [TinyFish Search] Finding Claude Code skills...')
+  const queries = [
+    'claude code skills list github awesome 2025',
+    'site:github.com "claude code" skill SKILL.md',
+    'travisvn awesome-claude-skills',
+    'claude code slash commands plugins',
+  ]
+  const all = []
+  for (const q of queries) {
+    try {
+      const result = await tfSearch(q)
+      all.push(...(result.results || []).map(t => normalizeTool(t, 'github.com')))
+    } catch { /* continue */ }
+  }
+  return all
+}
+
+async function scanKeywords(keywords) {
+  console.log('  [TinyFish Search] Running targeted keyword searches...')
+  const all = []
+  // Build queries from profile keywords — tech stack + domains + gaps
+  const queries = keywords.slice(0, 6).map(kw => `new ${kw} 2025`)
+  // Also add generic high-value queries
+  queries.push(
+    'best MCP servers claude developer 2025',
+    'new AI coding tools 2025 developer productivity',
+    'model context protocol tools list',
+  )
+  for (const q of queries) {
+    try {
+      const result = await tfSearch(q)
       all.push(...(result.results || []).map(t => normalizeTool(t, 'web')))
     } catch { /* continue */ }
   }
@@ -161,7 +329,7 @@ function dedup(tools) {
   const seen = new Map()
   for (const t of tools) {
     const key = t.name.toLowerCase().trim()
-    if (key !== 'unknown' && !seen.has(key)) seen.set(key, t)
+    if (key !== 'unknown' && key.length > 2 && !seen.has(key)) seen.set(key, t)
   }
   return Array.from(seen.values())
 }
@@ -170,33 +338,48 @@ function dedup(tools) {
 
 export async function scanWeb(profile) {
   const keywords = profile.search_keywords || ['claude code', 'MCP server', 'AI tools']
-  console.log('\n  TinyFish parallel scans starting...')
+  console.log('\n  TinyFish parallel scans starting (9 sources)...')
 
-  const [shipables, github, npm, hn, kw] = await Promise.allSettled([
+  const [
+    shipables, github, npm, hn, mcpSo, glama,
+    productHunt, anthropic, awesomeMcp, claudeSkills, kw
+  ] = await Promise.allSettled([
     scanShipables(),
     scanGitHubMCP(keywords),
     scanNpm(keywords),
     scanHackerNews(keywords),
+    scanMcpSo(),
+    scanGlamaAI(),
+    scanProductHunt(keywords),
+    scanAnthropicBlog(),
+    scanAwesomeMCPList(),
+    scanClaudeCodeSkills(),
     scanKeywords(keywords),
   ])
 
   // Log any failures so they're visible
-  const results = { shipables, github, npm, hn, kw }
-  for (const [name, r] of Object.entries(results)) {
+  const resultMap = { shipables, github, npm, hn, mcpSo, glama, productHunt, anthropic, awesomeMcp, claudeSkills, kw }
+  for (const [name, r] of Object.entries(resultMap)) {
     if (r.status === 'rejected') {
       console.log(`  [!] ${name} scan failed: ${r.reason?.message || r.reason}`)
     }
   }
 
   const all = [
-    ...(shipables.status === 'fulfilled' ? shipables.value : []),
-    ...(github.status  === 'fulfilled' ? github.value  : []),
-    ...(npm.status     === 'fulfilled' ? npm.value     : []),
-    ...(hn.status      === 'fulfilled' ? hn.value      : []),
-    ...(kw.status      === 'fulfilled' ? kw.value      : []),
+    ...(shipables.status     === 'fulfilled' ? shipables.value     : []),
+    ...(github.status        === 'fulfilled' ? github.value        : []),
+    ...(npm.status           === 'fulfilled' ? npm.value           : []),
+    ...(hn.status            === 'fulfilled' ? hn.value            : []),
+    ...(mcpSo.status         === 'fulfilled' ? mcpSo.value         : []),
+    ...(glama.status         === 'fulfilled' ? glama.value         : []),
+    ...(productHunt.status   === 'fulfilled' ? productHunt.value   : []),
+    ...(anthropic.status     === 'fulfilled' ? anthropic.value     : []),
+    ...(awesomeMcp.status    === 'fulfilled' ? awesomeMcp.value    : []),
+    ...(claudeSkills.status  === 'fulfilled' ? claudeSkills.value  : []),
+    ...(kw.status            === 'fulfilled' ? kw.value            : []),
   ]
 
   const unique = dedup(all)
-  console.log(`  Found ${unique.length} unique tools across all sources`)
+  console.log(`  Found ${unique.length} unique tools across 11 sources`)
   return unique
 }
