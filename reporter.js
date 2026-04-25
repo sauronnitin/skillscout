@@ -182,6 +182,7 @@ ${approvedSection}
 | Unified API federation layer | WunderGraph Cosmo |
 | Secure container base image | Chainguard |
 | Skill registry & publishing | Shipables.dev |
+| Database & persistent storage | Ghost DB |
 
 ---
 
